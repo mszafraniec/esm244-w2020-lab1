@@ -1,0 +1,111 @@
+---
+title: "lab 1 fr"
+author: "Maya Szafraniec"
+date: "1/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# attach packages
+```{r}
+library(tidyverse)
+library(here)
+library(janitor)
+library(kableExtra)
+```
+
+
+# read in data frame about the fisheries 
+
+```{r}
+us_landings <-read_csv(here("data","noaa_fisheries.csv"))
+
+```
+
+Now, make a tidy version of the data frame
+
+parce number allows us to seperate the number from things when there is not somethign that divides the number from the unit, just pull out the number without making a new colum for the thing that you are removing (the dollar sign in this example)
+
+```{r}
+landings_tidy <-us_landings %>% 
+  clean_names()%>% 
+  mutate(state = str_to_lower(state),
+         afs_name = str_to_lower(afs_name)) %>% 
+  mutate(dollars_num = parse_number(dollars_usd))
+```
+
+
+Lets get some information for salmon
+
+string remove is for taking out the things that are not helpful for the current analysis 
+
+filter part search data for when at least part of the pattern is in the data
+
+Seperate, when you get to these, split things into these two columns
+
+```{r}
+salmon_landings <-landings_tidy %>%
+  mutate(afs_clean = str_remove(afs_name, patter = "aggregate")) %>% 
+  filter(str_detect(afs_clean, pattern = "salmon")) %>% 
+  separate(afs_clean, into = c("group","species", sep = ","))
+  
+```
+Find some grouped summary data:
+
+group by and summarize to make groups and then tell them how to seperate it
+
+find annual total US landing and dollar value (summing across all states) for each type fo salmon 
+
+```{r}
+salmon_summary<-salmon_landings %>% 
+  group_by(year,species) %>% 
+  summarize(
+    tot_landings = sum(landings_pounds),
+    tot_value = sum(dollars_num)
+  )
+
+```
+
+Make a graph!
+
+```{r}
+salmon_landings_graph <- ggplot(data = salmon_summary, aes(x=year,y=tot_landings))+
+  geom_line(aes(color=species))+
+  theme_minimal()
+
+salmon_landings_graph
+
+
+```
+
+Now we will export our graph with ggsave (put it back in the figures folder in the repo, tell it to put it here and name it this)
+
+```{r}
+ggsave(plot = salmon_landings_graph,
+       here("figures","us_salmon_ms.png"),
+       height =5,
+       width =8)
+```
+
+Make a kable table they are nice
+top 5 lines
+
+```{r}
+salmon_first_5<-salmon_summary %>% 
+  head(5)
+```
+
+Striped makes every other line dark
+full width makes it not fill up the whole html doctumet
+
+```{r}
+kable(salmon_first_5) %>% 
+  kable_styling(bootstrap_options = "striped",
+                full_width = FALSE)
+```
+
+
